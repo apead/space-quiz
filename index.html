@@ -185,6 +185,9 @@
     .final-score small { display: block; margin-top: 4px; font-size: 12px; }
     .result-details { display: flex; justify-content: center; gap: 23px; margin: 0 0 26px; font-size: 13px; color: var(--muted); }
     .result-details strong { color: var(--text); }
+    .replay-actions { display: grid; gap: 10px; }
+    .replay-actions .secondary { background: var(--soft); border: 1px solid var(--line); color: var(--text); }
+    .replay-actions .secondary:hover { background: var(--accent-soft); border-color: var(--accent); }
     @keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
     @keyframes pop { 0% { transform: scale(.96); } 55% { transform: scale(1.025); } 100% { transform: scale(1); } }
     @keyframes reveal { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
@@ -255,7 +258,10 @@
         <p id="result-message"></p>
         <div class="final-score"><strong id="final-score"></strong><small>Your cosmic knowledge score</small></div>
         <div class="result-details"><span><strong id="correct-count"></strong> correct</span><span><strong id="wrong-count"></strong> missed</span><span><strong id="accuracy"></strong> accuracy</span></div>
-        <button class="primary" id="restart">Explore again &rarr;</button>
+        <div class="replay-actions" role="group" aria-label="Replay options">
+          <button class="primary" id="restart">Explore again &rarr;</button>
+          <button class="primary secondary" id="restart-shuffled">Replay shuffled</button>
+        </div>
       </section>
     </div>
     <footer>Stay curious <span>&#10022;</span> The universe is full of surprises.</footer>
@@ -278,14 +284,23 @@
     let current = 0;
     let score = 0;
     let answered = false;
+    let attemptQuestions = questions;
+    function shuffleQuestions(items) {
+      const shuffled = [...items];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
     function renderQuestion(focus = false) {
       answered = false;
-      const item = questions[current];
+      const item = attemptQuestions[current];
       $("question-number").textContent = String(current + 1).padStart(2, "0");
       $("score").textContent = score;
       $("progress").value = current;
-      $("progress").textContent = `${current} of ${questions.length}`;
-      $("completed-count").textContent = `${current} / ${questions.length} complete`;
+      $("progress").textContent = `${current} of ${attemptQuestions.length}`;
+      $("completed-count").textContent = `${current} / ${attemptQuestions.length} complete`;
       $("mission-status").textContent = "Awaiting response";
       $("category").textContent = item.category;
       $("question").textContent = item.question;
@@ -312,13 +327,13 @@
     function selectAnswer(index) {
       if (answered) return;
       answered = true;
-      const item = questions[current];
+      const item = attemptQuestions[current];
       const correct = index === item.correct;
       if (correct) score++;
       $("score").textContent = score;
       $("progress").value = current + 1;
-      $("progress").textContent = `${current + 1} of ${questions.length}`;
-      $("completed-count").textContent = `${current + 1} / ${questions.length} complete`;
+      $("progress").textContent = `${current + 1} of ${attemptQuestions.length}`;
+      $("completed-count").textContent = `${current + 1} / ${attemptQuestions.length} complete`;
       $("mission-status").textContent = "Response logged";
       Array.from($("answers").children).forEach((button, i) => {
         button.disabled = true;
@@ -369,28 +384,32 @@
       $("reaction").textContent = reaction[0];
       $("result-title").textContent = reaction[1];
       $("result-message").textContent = reaction[2];
-      $("final-score").textContent = `${score} / ${questions.length}`;
+      $("final-score").textContent = `${score} / ${attemptQuestions.length}`;
       $("correct-count").textContent = score;
-      $("wrong-count").textContent = questions.length - score;
-      $("accuracy").textContent = `${Math.round(score / questions.length * 100)}%`;
+      $("wrong-count").textContent = attemptQuestions.length - score;
+      $("accuracy").textContent = `${Math.round(score / attemptQuestions.length * 100)}%`;
       $("result-title").focus({ preventScroll: true });
     }
     $("next").addEventListener("click", () => {
       if (!answered) return;
       current++;
-      if (current === questions.length) showResults();
+      if (current === attemptQuestions.length) showResults();
       else renderQuestion(true);
     });
-    $("restart").addEventListener("click", () => {
+    function replay(shuffled = false) {
       current = 0;
       score = 0;
+      answered = false;
+      attemptQuestions = shuffled ? shuffleQuestions(questions) : questions;
       $("results").hidden = true;
       $("results").classList.remove("celebrating");
       $("confetti").replaceChildren();
       $("honors").hidden = true;
       $("quiz").hidden = false;
       renderQuestion(true);
-    });
+    }
+    $("restart").addEventListener("click", () => replay());
+    $("restart-shuffled").addEventListener("click", () => replay(true));
     document.addEventListener("keydown", (event) => {
       if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || $("quiz").hidden || answered) return;
       if (/^[1-4]$/.test(event.key)) {
